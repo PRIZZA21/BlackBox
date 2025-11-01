@@ -1,3 +1,4 @@
+# NOTE THIS IS A LEGACY CODE 
 import assemblyai as aai
 import ollama
 import os
