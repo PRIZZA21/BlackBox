@@ -3,6 +3,10 @@ import sys
 import os
 import traceback
 
+
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY"] = "False"
+
 print("\n" + "="*60)
 print("🏠 REAL ESTATE VOICE ASSISTANT - DEBUG MODE")
 print("="*60)
