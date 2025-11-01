@@ -1,147 +1,125 @@
-import time
-from config import config
-from data import RealEstateKnowledgeBase
-from voice import TranscriptionManager, SpeechSynthesizer
-from llm import RealEstateAgent
-from utils import logger
+#!/usr/bin/env python3
+import sys
+import os
+import traceback
 
+print("\n" + "="*60)
+print("🏠 REAL ESTATE VOICE ASSISTANT - DEBUG MODE")
+print("="*60)
 
-class RealEstateVoiceAssistant:
-    """Main application class coordinating all components"""
-    
-    def __init__(self):
-        """Initialize all components"""
-        logger.info("Initializing Real Estate Voice Assistant...")
-        
-        # Initialize components
-        self.kb = RealEstateKnowledgeBase(config.CSV_FILE, config.EMBEDDING_MODEL)
-        self.transcriber = TranscriptionManager(config.ASSEMBLYAI_API_KEY, config.SAMPLE_RATE)
-        self.speaker = SpeechSynthesizer()
-        self.agent = RealEstateAgent(config.LLM_MODEL)
-        
-        # State management
-        self.is_running = True
-        self.user_input = None
-        self.user_input_received = False
-        
-        # Set up callbacks
-        self.transcriber.set_on_text(self._on_user_spoke)
-        self.transcriber.set_on_error(self._on_transcription_error)
-        
-        logger.info("Initialization complete!")
-    
-    def _on_user_spoke(self, text: str):
-        """Callback when user speaks"""
-        self.user_input = text
-        self.user_input_received = True
-        print(f"👤 Customer: {text}")
-    
-    def _on_transcription_error(self, error: str):
-        """Callback on transcription error"""
-        logger.error(f"Transcription error: {error}")
-    
-    def _should_exit(self, user_input: str) -> bool:
-        """Check if user wants to exit"""
-        return user_input.lower() == config.EXIT_PHRASE.lower()
-    
-    def _process_user_input(self, user_input: str):
-        """Process user input and generate response"""
-        # Check for exit
-        if self._should_exit(user_input):
-            print("\n 🚪 Call ended by customer.")
-            self.is_running = False
-            return
-        
-        # Search knowledge base
-        logger.info(f"Searching knowledge base for: {user_input}")
-        context = self.kb.search(user_input, n_results=3)
-        
-        # Generate response
-        logger.info("Generating response...")
-        response = self.agent.generate_response(user_input, context)
-        print(f"🏠 Agent: {response}")
-        
-        # Split and play response
-        sentences = self.agent.split_response_by_sentences(response)
-        for sentence in sentences:
-            self.speaker.speak(sentence)
-        
-        print("------------------------------------")
-    
-    def _wait_for_input(self, timeout: int = config.MAX_WAIT_TIME) -> bool:
-        """
-        Wait for user input with timeout
-        
-        Args:
-            timeout: Maximum time to wait in seconds
-            
-        Returns:
-            True if input received, False on timeout
-        """
-        start_time = time.time()
-        self.user_input_received = False
-        
-        while not self.user_input_received and self.is_running:
-            time.sleep(config.CHECK_INTERVAL)
-            if time.time() - start_time > timeout:
-                logger.warning("Input timeout")
-                return False
-        
-        return self.user_input_received
-    
-    def start(self):
-        """Start the voice assistant"""
-        print(f"🏠 Real Estate Voice Assistant Started...")
-        print(f"Say '{config.EXIT_PHRASE}' to end the call.\n")
-        
-        # Generate initial greeting
-        logger.info("Generating greeting...")
-        greeting = self.agent.generate_greeting()
-        print(f"🏠 Agent: {greeting}\n")
-        sentences = self.agent.split_response_by_sentences(greeting)
-        for sentence in sentences:
-            self.speaker.speak(sentence)
-        
-        print("------------------------------------\n")
-        
-        # Main conversation loop
-        while self.is_running:
-            # Start listening
-            logger.info("Waiting for customer input...")
-            self.transcriber.start()
-            
-            # Wait for input
-            if self._wait_for_input():
-                if self.user_input:
-                    self._process_user_input(self.user_input)
-                    self.user_input = None
-            else:
-                print("\n⏱️ No response detected. Ending call.")
-                self.is_running = False
-        
-        print("\n👋 Thank you for using our real estate service!")
-    
-    def cleanup(self):
-        """Clean up resources"""
-        logger.info("Cleaning up resources...")
-        self.transcriber.stop()
+print(f"\nPython: {sys.version}")
+print(f"Working directory: {os.getcwd()}")
+print(f"Virtual env: {sys.prefix}")
 
+# Step 1: Check environment
+print("\n" + "-"*60)
+print("Step 1: Checking Environment...")
+print("-"*60)
 
-def main():
-    """Main entry point"""
-    try:
-        assistant = RealEstateVoiceAssistant()
-        assistant.start()
-    except KeyboardInterrupt:
-        logger.info("Application interrupted by user")
-        print("\n👋 Goodbye!")
-    except Exception as e:
-        logger.error(f"Fatal error: {e}", exc_info=True)
-        print(f"Error: {e}")
-    finally:
-        if 'assistant' in locals():
-            assistant.cleanup()
+if os.path.exists(".env"):
+    print("✅ .env file exists")
+    with open(".env", "r") as f:
+        for line in f:
+            if "ASSEMBLYAI_API_KEY" in line:
+                key_part = line.split("=")[1][:15]
+                print(f"   API Key starts with: {key_part}...")
+else:
+    print("❌ .env file NOT found!")
+    sys.exit(1)
 
+if os.path.exists("real_estate_data.csv"):
+    print("✅ real_estate_data.csv exists")
+else:
+    print("❌ real_estate_data.csv NOT found!")
+    sys.exit(1)
 
-if __name__ == "__main__":
-    main()
+# Step 2: Load config
+print("\n" + "-"*60)
+print("Step 2: Loading Configuration...")
+print("-"*60)
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("✅ dotenv loaded")
+    
+    from config import config
+    print("✅ config module loaded")
+    print(f"   CSV File: {config.CSV_FILE}")
+    print(f"   API Key set: {bool(config.ASSEMBLYAI_API_KEY)}")
+    
+except Exception as e:
+    print(f"❌ Config loading failed: {e}")
+    traceback.print_exc()
+    sys.exit(1)
+
+# Step 3: Initialize components
+print("\n" + "-"*60)
+print("Step 3: Initializing Components...")
+print("-"*60)
+
+try:
+    print("\n[3.1] Loading knowledge base...")
+    from data import RealEstateKnowledgeBase
+    kb = RealEstateKnowledgeBase(config.CSV_FILE, config.EMBEDDING_MODEL)
+    print("✅ Knowledge base loaded")
+    
+except Exception as e:
+    print(f"❌ Knowledge base failed: {e}")
+    traceback.print_exc()
+    sys.exit(1)
+
+try:
+    print("\n[3.2] Loading transcription manager...")
+    from voice import TranscriptionManager
+    transcriber = TranscriptionManager(config.ASSEMBLYAI_API_KEY, config.SAMPLE_RATE)
+    print("✅ Transcription manager ready")
+    
+except Exception as e:
+    print(f"❌ Transcription failed: {e}")
+    traceback.print_exc()
+    sys.exit(1)
+
+try:
+    print("\n[3.3] Loading speech synthesizer...")
+    from voice import SpeechSynthesizer
+    speaker = SpeechSynthesizer()
+    print("✅ Speech synthesizer ready")
+    
+except Exception as e:
+    print(f"❌ Speech synthesis failed: {e}")
+    traceback.print_exc()
+    sys.exit(1)
+
+try:
+    print("\n[3.4] Loading LLM agent...")
+    from llm import RealEstateAgent
+    agent = RealEstateAgent(config.LLM_MODEL)
+    print("✅ LLM agent initialized")
+    
+except Exception as e:
+    print(f"❌ LLM agent failed: {e}")
+    traceback.print_exc()
+    sys.exit(1)
+
+# Step 4: Start assistant
+print("\n" + "="*60)
+print("✅ ALL COMPONENTS LOADED SUCCESSFULLY!")
+print("="*60)
+
+print("\n🏠 Real Estate Voice Assistant Started...")
+print(f"Say '{config.EXIT_PHRASE}' to end the call.\n")
+
+try:
+    print("Generating initial greeting...")
+    greeting = agent.generate_greeting()
+    print(f"\n🏠 Agent: {greeting}\n")
+    print("="*60)
+    print("Ready to start conversation!")
+    print("="*60)
+    
+except Exception as e:
+    print(f"❌ Error generating greeting: {e}")
+    traceback.print_exc()
+    sys.exit(1)
+
