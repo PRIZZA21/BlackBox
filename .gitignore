@@ -1,0 +1,33 @@
+# Environment variables and secret keys
+.env
+.env.local
+
+# Python cache and bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+aai/  # Your custom venv if named differently
+
+# Logs and outputs
+app.log
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Data files (if large and not needed in repo)
+real_estate_data.csv
+
+# ChromaDB local cache (if any)
+.chromadb/
+
+# IDE/editor folders
+.vscode/
+.idea/
+*.swp
+*.swo
